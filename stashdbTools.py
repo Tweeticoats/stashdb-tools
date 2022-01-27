@@ -279,8 +279,34 @@ __typename
         response = requests.post(self.url, data=m,headers=headers_tmp)
         return response.json()
 
-
+    """
+    mutation  submitSceneDraft($input: SceneDraftInput!) {
+  submitSceneDraft(input: $input) {
+    id
+  }
+}
+{
+  "input": {
+    "title": "Picture Perfect",
+    "details":"Webster's defines boudoir as a woman's dressing room, bedroom or private sitting room while photography is the process of producing images on a sensitized surface by the action of radiant energy. Put those two things together, add some silk pillows, and you've got yourself a wild photo session with Penny Pax! Be the lucky photographer as this busty ginger Hotwife poses for an Anniversary gift and a hole lot more!",
+    "url":"https://www.milfvr.com/picture-perfect-5470569",
+    "date":"2019-09-27",
+    "studio":{
+      "name":"Milfvr",
+      "id":"38382977-9f5e-42fb-875b-2f4dd1272b11"
+    },
+    "performers": [{
+      "name":"Penny Pax",
+      "id":"a67371ea-2130-4d82-8d42-c9cfa847d4ae"
+    }],
+    "tags":null,
+    "image": null,
+    "fingerprints": []
+  }
+}"""
     def submitDraft(self,scene, image):
+        
+        
         query="""mutation  submitSceneDraft($input: SceneDraftInput!) {
   submitSceneDraft(input: $input) {
     id
@@ -309,6 +335,79 @@ __typename
         if "queryEdits" in result:
             return result["queryEdits"]["count"]
         return -1
+
+    def queryScenesByStudio(self,studio_id):
+        query="""query Scenes($filter: QuerySpec, $sceneFilter: SceneFilterType) {
+  queryScenes(filter: $filter, scene_filter: $sceneFilter) {
+    count
+    scenes {
+      ...QuerySceneFragment
+      __typename
+    }
+    __typename
+  }
+}
+fragment QuerySceneFragment on Scene {
+  id
+  date
+  title
+  duration
+  urls {
+    ...URLFragment
+    __typename
+  }
+  images {
+    ...ImageFragment
+    __typename
+  }
+  studio {
+    id
+    name
+    __typename
+  }
+  performers {
+    as
+    performer {
+      ...ScenePerformerFragment
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+fragment URLFragment on URL {
+  url
+  site {
+    id
+    name
+    icon
+    __typename
+  }
+  __typename
+}
+fragment ImageFragment on Image {
+  id
+  url
+  width
+  height
+  __typename
+}
+fragment ScenePerformerFragment on Performer {
+  id
+  name
+  disambiguation
+  deleted
+  gender
+  aliases
+  __typename
+}
+"""
+
+        variables={"filter": {"direction": "DESC","page": 1,"per_page": 20},"sceneFilter": {"parentStudio":studio_id}}
+        result = self.__callGraphQL(query, variables)
+        if "queryScenes" in result:
+            return result["queryScenes"]["scenes"]
+        return None
 
 
     def matchPerformers(self):
@@ -362,15 +461,21 @@ __typename
 
     def matchScenes(self):
         c = self.conn.cursor()
-        c.execute('select scenes.id,scenes.title,scenes.scene_url, scenes.studio, sites_stashdb.stash_id from scenes, sites_stashdb where scenes.studio =sites_stashdb.id and scenes.id not in (select id from scenes_stashdb);')
-        rec=[]
+        c.execute('select id,stash_id from sites_stashdb');
         for row in c.fetchall():
-            id= row[0]
-            title=row[1]
-            url=row[2]
-            studio=row[3]
-            studio_stash_id=row[4]
-            print(""+str(id)+" "+title)
+            studio_id=row[0]
+            studio_stash_id=row[1]
+            scenes=self.queryScenesByStudio(studio_stash_id)
+            c1 = self.conn.cursor()
+            c1.execute('select id,title,scene_url, studio from scenes where studio=%s',(studio_id,))
+            for row in c2.fetchall():
+                id= row[0]
+                title=row[1]
+                scene_url=row[2]
+                print(""+str(id)+" "+title)
+                for s in scenes:
+                    if s['url']
+
 
 
     def lookupPerformer(self,name):
