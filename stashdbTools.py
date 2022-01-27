@@ -280,6 +280,37 @@ __typename
         return response.json()
 
 
+    def submitDraft(self,scene, image):
+        query="""mutation  submitSceneDraft($input: SceneDraftInput!) {
+  submitSceneDraft(input: $input) {
+    id
+  }
+}"""
+        img_type = imghdr.what(None, h=image) or 'jpeg'
+        mime = mimetypes.types_map.get('.' + img_type, 'image/jpeg')
+
+
+        m = MultipartEncoder(fields={'operations':'{"operationName":"AddImage","variables":{"imageData":{"file":null}},"query":"mutation AddImage($imageData: ImageCreateInput!) {  imageCreate(input: $imageData) {id}}"}',
+                                     'map':'{"1":["variables.imageData.file"]}',
+                                     '1': ('1.jpg',image,mime)})
+
+        headers_tmp = self.headers.copy()
+        headers_tmp["Content-Type"] = m.content_type
+
+        response = requests.post(self.url, data=m,headers=headers_tmp)
+        return response.json()
+
+    def pendingEdits(self,type,id):
+        query="""query PendingEditsCount($type: TargetTypeEnum!, $id: ID!) {  queryEdits(    edit_filter: {target_type: $type, target_id: $id, status: PENDING}    filter: {per_page: 1}  ) {    count    __typename  }}"""
+
+
+        variables = {'id': id,'type':type}
+        result = self.__callGraphQL(query, variables)
+        if "queryEdits" in result:
+            return result["queryEdits"]["count"]
+        return -1
+
+
     def matchPerformers(self):
         c = self.conn.cursor()
         c.execute('select id,name from actors where id not in (select id from performer_stashdb);')
@@ -329,6 +360,17 @@ __typename
                         c2.execute('insert into tags_stashdb(id,stash_id) values (%s,%s)',(id,t['id'],))
                         self.conn.commit();
 
+    def matchScenes(self):
+        c = self.conn.cursor()
+        c.execute('select scenes.id,scenes.title,scenes.scene_url, scenes.studio, sites_stashdb.stash_id from scenes, sites_stashdb where scenes.studio =sites_stashdb.id and scenes.id not in (select id from scenes_stashdb);')
+        rec=[]
+        for row in c.fetchall():
+            id= row[0]
+            title=row[1]
+            url=row[2]
+            studio=row[3]
+            studio_stash_id=row[4]
+            print(""+str(id)+" "+title)
 
 
     def lookupPerformer(self,name):
@@ -419,6 +461,6 @@ if __name__ == '__main__':
         tools.matchStudio()
     elif sys.argv[1] == "tags_match":
         tools.matchTags()
-    elif sys.argv[1]=="stash_scraper":
-        print(sys.argv[2])
+    elif sys.argv[1]=="tmp":
+        print("Pending edits: " +str(tools.pendingEdits('PERFORMER','c2b7cb03-dbea-4007-b0f4-49459154713c')))
 
