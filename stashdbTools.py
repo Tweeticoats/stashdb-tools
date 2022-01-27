@@ -8,7 +8,7 @@ import imghdr
 import mimetypes
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import os
-
+from fake_useragent import UserAgent
 
 import mysql.connector
 
@@ -25,6 +25,7 @@ class stashdbTools:
 
     conn=None
     url='https://stashdb.org/graphql'
+    xbvr_host=os.getenv('XBVR_HOST', 'http://localhost:9999')
 
     def __init__(self,api_key,db_config):
 #        self.conn = sqlite3.connect(dbname, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -32,6 +33,7 @@ class stashdbTools:
         self.conn = mysql.connector.connect(**db_config)
 
         self.headers["ApiKey"]=api_key
+
 
     def __del__(self):
         try:
@@ -304,24 +306,40 @@ __typename
     "fingerprints": []
   }
 }"""
-    def submitDraft(self,scene, image):
-        
-        
-        query="""mutation  submitSceneDraft($input: SceneDraftInput!) {
-  submitSceneDraft(input: $input) {
-    id
-  }
-}"""
-        img_type = imghdr.what(None, h=image) or 'jpeg'
-        mime = mimetypes.types_map.get('.' + img_type, 'image/jpeg')
+    def submitDraft(self,scene):
+
+        image_url=scene['scene_image']
+        if image_url[:8]=='https://':
+            image_url=self.xbvr_host+'/img/700x/https:/'+image_url[8:]
 
 
-        m = MultipartEncoder(fields={'operations':'{"operationName":"AddImage","variables":{"imageData":{"file":null}},"query":"mutation AddImage($imageData: ImageCreateInput!) {  imageCreate(input: $imageData) {id}}"}',
-                                     'map':'{"1":["variables.imageData.file"]}',
-                                     '1': ('1.jpg',image,mime)})
+
+        image_response = requests.post(image_url)
+
+        mime = image_response.headers['Content-Type']
+        if image_response.status_code == 200:
+            print("Downloaded image")
+        else:
+            print("failure when downloading image" +str(image_response.status_code))
+
+            return
+        del scene['scene_image']
+        scene['image']=None
+        query="""mutation submitSceneDraft($input: SceneDraftInput!) { submitSceneDraft(input: $input) {id}}"""
+        scene_json=json.dumps(scene)
+        print(scene_json)
+        print(query)
+
+#       m = MultipartEncoder(fields={'operations':'{"variables":{"imageData":{"file":null}},"query":"mutation AddImage($imageData: ImageCreateInput!) {  imageCreate(input: $imageData) {id}}"}',
+        m = MultipartEncoder(fields={'operations':'{"variables":{"input":'+ scene_json+'},"query":"'+query+'"}',
+                                     'map':'{"0":["variables.input.image"]}',
+                                     '0': ('1.jpg',image_response.content,mime)})
 
         headers_tmp = self.headers.copy()
         headers_tmp["Content-Type"] = m.content_type
+        print(m)
+        print(headers_tmp)
+
 
         response = requests.post(self.url, data=m,headers=headers_tmp)
         return response.json()
@@ -461,20 +479,39 @@ fragment ScenePerformerFragment on Performer {
 
     def matchScenes(self):
         c = self.conn.cursor()
-        c.execute('select id,stash_id from sites_stashdb');
+#        c.execute('select id,stash_id from sites_stashdb where stash_id=%s',('70f0d8de-3aa7-4fa0-8b14-cfed49f1fa8f',));
+        c.execute('select id,stash_id from sites_stashdb;');
         for row in c.fetchall():
             studio_id=row[0]
             studio_stash_id=row[1]
+            print("Looking at studio: "+studio_id+", "+studio_stash_id)
+
             scenes=self.queryScenesByStudio(studio_stash_id)
+            print("found: "+str(len(scenes)))
             c1 = self.conn.cursor()
-            c1.execute('select id,title,scene_url, studio from scenes where studio=%s',(studio_id,))
-            for row in c2.fetchall():
+            c1.execute('select id,title,scene_url, site from scenes where site=%s and id not in (select id from scenes_stashdb);',(studio_id,))
+            for row in c1.fetchall():
                 id= row[0]
                 title=row[1]
                 scene_url=row[2]
-                print(""+str(id)+" "+title)
+                print("looking for matching scene in stashdb: "+str(id)+" "+title)
+                print(len(scenes))
                 for s in scenes:
-                    if s['url']
+                    print(s['title'].casefold())
+                    print(title.casefold())
+                    print(s['title'].casefold()==title.casefold())
+                    if s['urls'] is not None:
+                        for u in s['urls']:
+                            if u['url']==scene_url:
+                                print("Found matching url, "+scene_url+" saving results")
+                                c2=self.conn.cursor()
+                                c2.execute('insert into scenes_stashdb(id,stash_id) values (%s,%s)',(id,s['id'],))
+                                self.conn.commit();
+                    elif s['title'].casefold()==title.casefold():
+                        print("Found matching title, " + title + " saving results")
+                        c2 = self.conn.cursor()
+                        c2.execute('insert into scenes_stashdb(id,stash_id) values (%s,%s)', (id, s['id'],))
+                        self.conn.commit();
 
 
 
@@ -515,7 +552,6 @@ fragment ScenePerformerFragment on Performer {
 
     def exportStudios(self):
         c = self.conn.cursor()
-#        c.execute('select id,name,url,(select image from studios_image where studio_id=id) image from studios where id not in (select studio_id from studio_stash_ids) order by 1 asc;')
         c.execute('select id,name,url,(select image from studios_image where studio_id=id) image from studios;')
         for row in c.fetchall():
 
@@ -534,6 +570,28 @@ fragment ScenePerformerFragment on Performer {
             if urls is not None:
                 input["urls"]= [{"url": urls, "type": "studio"}]
             self.createStudio(input)
+
+    def query_db_scenes(self,id):
+        c = self.conn.cursor()
+        c.execute('select scenes.title,scenes.synopsis,scenes.site,sites_stashdb.stash_id,scenes.cover_url,scenes.scene_url,DATE_FORMAT(scenes.release_date,"%Y-%m-%d"),duration from scenes,sites_stashdb where scenes.site=sites_stashdb.id and scenes.id=%s;', (id,))
+        row = c.fetchone()
+        res = {}
+        res['title'] = row[0]
+        res['details'] = row[1]
+        res['studio'] = {"name": row[2],"id":row[3]}
+        res['scene_image'] = row[4]
+        res['url'] = row[5]
+        res['date'] = row[6]
+        res["fingerprints"]=[{"hash":"d41d8cd98f00b204e9800998ecf8427e","algorithm":"MD5","duration":0}]
+        c.execute("select tags.name,tags_stashdb.stash_id from scene_tags,tags,tags_stashdb where scene_tags.tag_id=tags.id and tags.id=tags_stashdb.id and scene_tags.scene_id=%s ;",
+                  (id,))
+        row = c.fetchall()
+        res['tags'] = [{"name": x[0],"id":x[1]} for x in row]
+        c.execute("select actors.name,performer_stashdb.stash_id from scene_cast,actors,performer_stashdb where actors.id=scene_cast.actor_id and  performer_stashdb.id=actors.id and scene_cast.scene_id=%s;",(id,))
+        row = c.fetchall()
+        res['performers'] = [{"name": x[0],"id":x[1]} for x in row]
+
+        return res
 
     def exportPerformers(self):
         c=self.conn.cursor()
@@ -566,6 +624,12 @@ if __name__ == '__main__':
         tools.matchStudio()
     elif sys.argv[1] == "tags_match":
         tools.matchTags()
+    elif sys.argv[1] == "scenes_match":
+        tools.matchScenes()
     elif sys.argv[1]=="tmp":
-        print("Pending edits: " +str(tools.pendingEdits('PERFORMER','c2b7cb03-dbea-4007-b0f4-49459154713c')))
+        res=tools.query_db_scenes(4011)
+
+
+        status=tools.submitDraft(res)
+        print(status)
 
