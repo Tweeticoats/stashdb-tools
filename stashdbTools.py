@@ -1,4 +1,4 @@
-import sqlite3
+#import sqlite3
 import requests
 import sys
 import json
@@ -7,7 +7,10 @@ import base64
 import imghdr
 import mimetypes
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+import os
 
+
+import mysql.connector
 
 class stashdbTools:
     headers = {
@@ -21,12 +24,21 @@ class stashdbTools:
 
 
     conn=None
-#    url='https://stashdb.org/graphql'
-    url='http://localhost:9998/graphql'
-    def __init__(self,api_key,dbname='stash-go.sqlite'):
-        self.conn = sqlite3.connect(dbname, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+    url='https://stashdb.org/graphql'
+
+    def __init__(self,api_key,db_config):
+#        self.conn = sqlite3.connect(dbname, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        print("connecting to db")
+        self.conn = mysql.connector.connect(**db_config)
+
         self.headers["ApiKey"]=api_key
 
+    def __del__(self):
+        try:
+            self.conn.close()
+            print("closing db")
+        except:
+            print("error closing db")
 
 
     def __callGraphQL(self, query, variables=None):
@@ -122,7 +134,6 @@ class stashdbTools:
 
         return result
 
-
     def lookupStudio(self,id):
         query="""query Studio($id: ID!) {
   findStudio(id: $id) {
@@ -208,6 +219,27 @@ class stashdbTools:
         variables = {'input': input}
         result = self.__callGraphQL(query, variables)
 
+    def queryTags(self, input):
+        query = """query Tags($filter: QuerySpec, $tagFilter: TagFilterType) {
+queryTags(filter: $filter, tag_filter: $tagFilter) {
+count
+tags {
+  id
+  name
+  description
+  __typename
+}
+__typename
+}
+}
+"""
+        variables = {"filter": {"direction": "ASC","page": 1, "per_page": 40, "sort": "name" }, "tagFilter": {"name": input} }
+        result = self.__callGraphQL(query, variables)
+        if "queryTags" in result:
+            return result["queryTags"]["tags"]
+        return None
+
+
 
     def createImage(self,image):
 #        query="""mutation imageCreate($input: ImageCreateInput!) {
@@ -247,9 +279,10 @@ class stashdbTools:
         response = requests.post(self.url, data=m,headers=headers_tmp)
         return response.json()
 
-    def loopPerformers(self):
+
+    def matchPerformers(self):
         c = self.conn.cursor()
-        c.execute('select id,name from performers where id not in (select performer_id from performer_stash_ids) order by 1 asc;')
+        c.execute('select id,name from actors where id not in (select id from performer_stashdb);')
         rec=[]
         for row in c.fetchall():
             id= row[0]
@@ -259,12 +292,12 @@ class stashdbTools:
             if stashdbid is not None:
                 print("adding stash id: "+stashdbid+" for performer: "+name)
                 c2=self.conn.cursor()
-                c2.execute("insert into performer_stash_ids(performer_id, endpoint, stash_id) values (?,?,?)",(id,self.url,stashdbid,))
+                c2.execute("insert into performer_stashdb (id,stash_id) values (%s,%s)",(id,stashdbid))
                 self.conn.commit();
 
-    def loopStudio(self):
+    def matchStudio(self):
         c = self.conn.cursor()
-        c.execute('select id,name from studios where id not in (select studio_id from studio_stash_ids) order by 1 asc;')
+        c.execute('select id,name from sites where id not in (select id from sites_stashdb);    ')
         rec=[]
         for row in c.fetchall():
             id= row[0]
@@ -275,8 +308,27 @@ class stashdbTools:
             if stashdbid is not None:
                 print("adding stash id: "+stashdbid+" for studio: "+name)
                 c2=self.conn.cursor()
-                c2.execute('insert into studio_stash_ids(studio_id, endpoint, stash_id) values (?,?,?)',(id,self.url,stashdbid,))
+                c2.execute('insert into sites_stashdb(id,stash_id) values (%s,%s)',(id,stashdbid,))
                 self.conn.commit();
+
+    def matchTags(self):
+        c = self.conn.cursor()
+        c.execute('select id,name from tags where id not in (select id from tags_stashdb);')
+        rec=[]
+        for row in c.fetchall():
+            id= row[0]
+            name=row[1]
+            print(""+str(id)+" "+name)
+
+            tags=self.queryTags(name)
+            if tags is not None:
+                for t in tags:
+                    if t["name"].lower()==name:
+                        print("adding stash id: "+t['id']+" for Tag: "+name)
+                        c2=self.conn.cursor()
+                        c2.execute('insert into tags_stashdb(id,stash_id) values (%s,%s)',(id,t['id'],))
+                        self.conn.commit();
+
 
 
     def lookupPerformer(self,name):
@@ -313,6 +365,7 @@ class stashdbTools:
             for p in res["queryStudios"]["studios"]:
                 if (p["name"]).lower().replace(" ","") == name.lower().replace(" ",""):
                     return p["id"]
+
     def exportStudios(self):
         c = self.conn.cursor()
 #        c.execute('select id,name,url,(select image from studios_image where studio_id=id) image from studios where id not in (select studio_id from studio_stash_ids) order by 1 asc;')
@@ -334,6 +387,7 @@ class stashdbTools:
             if urls is not None:
                 input["urls"]= [{"url": urls, "type": "studio"}]
             self.createStudio(input)
+
     def exportPerformers(self):
         c=self.conn.cursor()
         c.execute('select id,name,gender,url, twitter,instagram,birthdate,ethnicity,country,eye_color,height,measurements,fake_tits,career_length,tattoos,piercings,aliases,details,death_date,hair_color,weight  from performers where id not in (select performer_id from performer_stash_ids where endpoint=?);',(self.url))
@@ -344,16 +398,27 @@ class stashdbTools:
             url=row[3]
 
 if __name__ == '__main__':
-    if len(sys.argv) > 2:
-        if sys.argv[1] == "performer_match":
-            tools=stashdbTools(sys.argv[2],'stash-go.sqlite')
-            tools.loopPerformers()
-        elif sys.argv[1] == "studio_match":
-            tools=stashdbTools(sys.argv[2],'stash-go.sqlite')
-            tools.loopStudio()
-        elif sys.argv[1] == "export_studios":
-            tools=stashdbTools(sys.argv[2],'stash-go.sqlite')
-            tools.exportStudios()
 
+    db_config = {
+        'user': os.getenv('DB_USER', 'xbvr'),
+        'password': os.getenv('DB_PASS', 'xbvr'),
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'database': os.getenv('DB_NAME', 'xbvr'),
+        'raise_on_warnings': True
+    }
 
+    api_key = os.getenv('API_KEY')
+    if api_key is None:
+        print("API_KEY needs to be defined")
+        exit(1)
+
+    tools = stashdbTools(api_key, db_config)
+    if sys.argv[1] == "performer_match":
+        tools.matchPerformers()
+    elif sys.argv[1] == "studio_match":
+        tools.matchStudio()
+    elif sys.argv[1] == "tags_match":
+        tools.matchTags()
+    elif sys.argv[1]=="stash_scraper":
+        print(sys.argv[2])
 
