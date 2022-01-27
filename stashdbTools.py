@@ -233,12 +233,13 @@ class stashdbTools:
 #        response = requests.post(self.url, files={'operations':query,'map':'{"1":["variables.imageData.file"]}','1':(None,image)},headers=self.headers)
 #        print(response)
 #        query={"operationName":"AddImage","variables":{"imageData":{"file":None}},"query":"mutation AddImage($imageData: ImageCreateInput!) {\n  imageCreate(input: $imageData) {\n    id\n    url\n    width\n    height\n    __typename\n  }\n}\n"}
+        img_type = imghdr.what(None, h=image) or 'jpeg'
+        mime = mimetypes.types_map.get('.' + img_type, 'image/jpeg')
 
 
-        print("image:"+str(len(image)))
         m = MultipartEncoder(fields={'operations':'{"operationName":"AddImage","variables":{"imageData":{"file":null}},"query":"mutation AddImage($imageData: ImageCreateInput!) {  imageCreate(input: $imageData) {id}}"}',
                                      'map':'{"1":["variables.imageData.file"]}',
-                                     '1': ('1.jpg',image)})
+                                     '1': ('1.jpg',image,mime)})
 
         headers_tmp = self.headers.copy()
         headers_tmp["Content-Type"] = m.content_type
@@ -333,21 +334,14 @@ class stashdbTools:
             if urls is not None:
                 input["urls"]= [{"url": urls, "type": "studio"}]
             self.createStudio(input)
-
-
-#    def uploadImage(self,image):
-#        img=self.make_image_data_url(data)
-#        res=self.createImage(data)
-#        return res
-    def make_image_data_url(self,image_data):
-        # type: (bytes,) -> str
-        img_type = imghdr.what(None, h=image_data) or 'jpeg'
-        mime = mimetypes.types_map.get('.' + img_type, 'image/jpeg')
-        encoded = base64.b64encode(image_data).decode()
-        return 'data:{0};base64,{1}'.format(mime, encoded)
-
-
-
+    def exportPerformers(self):
+        c=self.conn.cursor()
+        c.execute('select id,name,gender,url, twitter,instagram,birthdate,ethnicity,country,eye_color,height,measurements,fake_tits,career_length,tattoos,piercings,aliases,details,death_date,hair_color,weight  from performers where id not in (select performer_id from performer_stash_ids where endpoint=?);',(self.url))
+        for row in c.fetchall():
+            id=row[0]
+            name=row[1]
+            gender=row[2]
+            url=row[3]
 
 if __name__ == '__main__':
     if len(sys.argv) > 2:
