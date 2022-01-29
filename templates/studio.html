@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<img src="{{ studio['image'] }}"/>
+<p>{{ studio['name'] }}</p>
+<br/>
+{% if studio['stash_id'] %}
+<a href="https://stashdb.org/studios/{{ studio['stash_id']}}"> {{ studio['stash_id'] }}</a>
+{% else %}
+Studio not matched
+{% endif %}
+
+
+
+
+{% endblock %}

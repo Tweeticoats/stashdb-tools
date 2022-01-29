@@ -1,0 +1,4 @@
+requests~=2.26.0
+requests-toolbelt~=0.9.1
+mysql-connector-python~=8.0.28
+Flask

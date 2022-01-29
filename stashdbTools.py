@@ -8,7 +8,8 @@ import imghdr
 import mimetypes
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import os
-from fake_useragent import UserAgent
+from flask import Flask, jsonify, request
+
 
 import mysql.connector
 
@@ -327,8 +328,6 @@ __typename
         scene['image']=None
         query="""mutation submitSceneDraft($input: SceneDraftInput!) { submitSceneDraft(input: $input) {id}}"""
         scene_json=json.dumps(scene)
-        print(scene_json)
-        print(query)
 
 #       m = MultipartEncoder(fields={'operations':'{"variables":{"imageData":{"file":null}},"query":"mutation AddImage($imageData: ImageCreateInput!) {  imageCreate(input: $imageData) {id}}"}',
         m = MultipartEncoder(fields={'operations':'{"variables":{"input":'+ scene_json+'},"query":"'+query+'"}',
@@ -337,10 +336,9 @@ __typename
 
         headers_tmp = self.headers.copy()
         headers_tmp["Content-Type"] = m.content_type
-        print(m)
-        print(headers_tmp)
 
 
+        print("Submitting scene: "+scene['title'])
         response = requests.post(self.url, data=m,headers=headers_tmp)
         return response.json()
 
@@ -487,19 +485,19 @@ fragment ScenePerformerFragment on Performer {
             print("Looking at studio: "+studio_id+", "+studio_stash_id)
 
             scenes=self.queryScenesByStudio(studio_stash_id)
-            print("found: "+str(len(scenes)))
+#            print("found: "+str(len(scenes)))
             c1 = self.conn.cursor()
             c1.execute('select id,title,scene_url, site from scenes where site=%s and id not in (select id from scenes_stashdb);',(studio_id,))
-            for row in c1.fetchall():
-                id= row[0]
-                title=row[1]
-                scene_url=row[2]
+            for row2 in c1.fetchall():
+                id= row2[0]
+                title=row2[1]
+                scene_url=row2[2]
                 print("looking for matching scene in stashdb: "+str(id)+" "+title)
-                print(len(scenes))
+#                print(len(scenes))
                 for s in scenes:
-                    print(s['title'].casefold())
-                    print(title.casefold())
-                    print(s['title'].casefold()==title.casefold())
+#                    print(s['title'].casefold())
+#                    print(title.casefold())
+#                    print(s['title'].casefold()==title.casefold())
                     if s['urls'] is not None:
                         for u in s['urls']:
                             if u['url']==scene_url:
@@ -507,11 +505,12 @@ fragment ScenePerformerFragment on Performer {
                                 c2=self.conn.cursor()
                                 c2.execute('insert into scenes_stashdb(id,stash_id) values (%s,%s)',(id,s['id'],))
                                 self.conn.commit();
-                    elif s['title'].casefold()==title.casefold():
+                    elif s['title'].lower()==title.lower():
                         print("Found matching title, " + title + " saving results")
                         c2 = self.conn.cursor()
                         c2.execute('insert into scenes_stashdb(id,stash_id) values (%s,%s)', (id, s['id'],))
                         self.conn.commit();
+
 
 
 
@@ -602,6 +601,10 @@ fragment ScenePerformerFragment on Performer {
             gender=row[2]
             url=row[3]
 
+
+    def flask(self):
+        True
+
 if __name__ == '__main__':
 
     db_config = {
@@ -627,9 +630,11 @@ if __name__ == '__main__':
     elif sys.argv[1] == "scenes_match":
         tools.matchScenes()
     elif sys.argv[1]=="tmp":
-        res=tools.query_db_scenes(4011)
+        res=tools.query_db_scenes(8408)
 
 
         status=tools.submitDraft(res)
         print(status)
+        if 'data' in status:
+            print("https://stashdb.org/drafts/"+status['data']['submitSceneDraft']['id'])
 

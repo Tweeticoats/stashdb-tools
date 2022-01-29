@@ -1,0 +1,42 @@
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax(300px, 1fr) );
+  background-color: #2196F3;
+  padding: 10px;
+}
+.grid-item {
+  border: 1px solid;
+  padding: 20px;
+  font-size: 14px;
+  text-align: center;
+  font-family: sans-serif;
+}
+
+container .performer {
+    max-height: calc(100vh - 6rem);
+    max-width: 100%;
+
+}
+.nav{
+  display: table;
+  width: 100%;
+  height: 3px;
+  padding-top: 0px;
+  border-bottom: brown solid 5px;
+}
+.nav-left{
+  width: 90%;
+  position: absolute;
+  left: 0px;
+  background: aqua;
+}
+.nav-right{
+  background: yellow;
+  position: absolute;
+  right: 0px;
+  width: 10%;
+  text-align: right;
+}
+.content {
+    margin-top: 30px;
+}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>stashdb-tools</title>
+      {% block headers %}{% endblock %}
+</head>
+<body>
+{% block nav %}
+<div class="nav">
+<div class="nav-left">
+Left
+</div>
+<div class="nav-right">
+    Right
+</div>
+</div>
+
+{% endblock %}
+<div class="content">
+{% block content %}{% endblock %}
+</div>
+</body>
+</html>

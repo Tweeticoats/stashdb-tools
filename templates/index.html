@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% for studio in studios %}
+  <div class="grid-item">
+
+<a href="/studio/{{ studio['id'] }}">
+    <img src="{{ studio['image'] }}"/>
+    <p>{{ studio['name'] }}</p>
+</a>
+</div>
+
+{% endfor %}
+
+
+{% endblock %}
