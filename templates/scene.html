@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>{{ scene['title'] }}</h2>
+<img src="{{ scene['scene_image'] }}"/>
+
+<h3><a href="/scene_submit/{{ scene_id }}">SUBMIT</a></h3>
+<br/>
+<p>{{ scene['details'] }}</p>
+tags:<ul>
+{% for t in scene['tags'] %}
+<li>{{ t['name'] }} - {{t['id']}}</li>
+{% endfor %}
+</ul>
+
+{% for p in scene['performers'] %}
+<li>{{ p['name'] }} - {{ p['id'] }}</li>
+{% endfor %}
+</ul>
+
+
+{% endblock %}

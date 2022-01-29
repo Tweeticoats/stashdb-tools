@@ -309,13 +309,9 @@ __typename
 }"""
     def submitDraft(self,scene):
 
-        image_url=scene['scene_image']
-        if image_url[:8]=='https://':
-            image_url=self.xbvr_host+'/img/700x/https:/'+image_url[8:]
 
 
-
-        image_response = requests.post(image_url)
+        image_response = requests.post(scene['scene_image'])
 
         mime = image_response.headers['Content-Type']
         if image_response.status_code == 200:
@@ -579,6 +575,10 @@ fragment ScenePerformerFragment on Performer {
         res['details'] = row[1]
         res['studio'] = {"name": row[2],"id":row[3]}
         res['scene_image'] = row[4]
+        if row[4][:8]=='https://':
+            res['scene_image']=self.xbvr_host+'/img/700x/https:/'+row[4][8:]
+
+
         res['url'] = row[5]
         res['date'] = row[6]
         res["fingerprints"]=[{"hash":"d41d8cd98f00b204e9800998ecf8427e","algorithm":"MD5","duration":0}]
@@ -630,7 +630,7 @@ if __name__ == '__main__':
     elif sys.argv[1] == "scenes_match":
         tools.matchScenes()
     elif sys.argv[1]=="tmp":
-        res=tools.query_db_scenes(8408)
+        res=tools.query_db_scenes(1066)
 
 
         status=tools.submitDraft(res)

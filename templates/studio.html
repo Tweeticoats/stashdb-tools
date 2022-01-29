@@ -10,6 +10,24 @@
 {% else %}
 Studio not matched
 {% endif %}
+<hr>
+
+<div class="grid-container">
+
+{% for scene in scenes %}
+  <div class="grid-item">
+
+<a href="/scene/{{ scene['id'] }}">
+    <img src="{{ scene["image"] }}"/>
+    <p>{{ scene['title'] }}</p>
+
+</a>
+
+
+</div>
+
+{% endfor %}
+</div>
 
 
 
