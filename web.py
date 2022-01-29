@@ -32,6 +32,8 @@ def root_url():
         data['id'] = row[0]
         data['name'] = row[1]
         data['image'] = row[2]
+        if row[2][:8] == 'https://':
+            data['image'] = tools.xbvr_host + '/img/200x/https:/' + row[2][8:]
         data['stash_id'] = row[3]
         studios.append(data)
     tools.conn.commit()
@@ -80,7 +82,10 @@ def scene_submit(scene_id):
     status = tools.submitDraft(scene)
     print(status)
     if 'data' in status:
-        return redirect("https://stashdb.org/drafts/" + status['data']['submitSceneDraft']['id'], code=302)
+        if 'submitSceneDraft' in status['data']:
+            return redirect("https://stashdb.org/drafts/" + status['data']['submitSceneDraft']['id'], code=302)
+        else:
+           return jsonify(status)
 
 
 if __name__ == '__main__':
