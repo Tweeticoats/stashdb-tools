@@ -22,8 +22,9 @@
 {% for p in scene['performers'] %}
 <li>{{ p['name'] }}
     {% if p['id'] %}
-    - <a href="https://stashdb.org/performers/{{ p['id'] }}"> {{ p['id'] }}</a></li>
+    - <a href="https://stashdb.org/performers/{{ p['id'] }}"> {{ p['id'] }}</a>
 {% endif %}
+    </li>
 {% endfor %}
 </ul>
 

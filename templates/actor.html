@@ -4,11 +4,17 @@
 
 <h2>{{ actor['name'] }}</h2>
 sites:
-{%for s in sites %}
-<a href="/studio/{{s}}">{{s}}</a>
-<br/>
+<ul>
+{% for k,v in scenes.items() %}
+<li><a href="/studio/{{k}}">{{k}}</a>
+    <ul>
+    {% for  s in v %}
+        <li><a href="/scene/{{s['id']}}">{{s['title']}}</a></li>
+    {%endfor%}
+    </ul>
+</li>
 {%endfor%}
-
+</ul>
 {% if actor['stash_id'] %}
 <a href="https://stashdb.org/performers/{{actor['stash_id']}}">{{actor['stash_id']}}</a>
 

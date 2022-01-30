@@ -599,7 +599,7 @@ fragment ScenePerformerFragment on Performer {
                   (id,))
         row = c.fetchall()
         res['tags'] = [{"name": x[0],"id":x[1]} for x in row]
-        c.execute("select actors.name,performer_stashdb.stash_id from scene_cast,actors,performer_stashdb where actors.id=scene_cast.actor_id and  performer_stashdb.id=actors.id and scene_cast.scene_id=%s;",(id,))
+        c.execute("select a.name,b.stash_id from scene_cast c,actors a left join performer_stashdb as b on a.id=b.id where a.id=c.actor_id and c.scene_id=%s;",(id,))
         row = c.fetchall()
         res['performers'] = [{"name": x[0],"id":x[1]} for x in row]
 
@@ -643,13 +643,13 @@ if __name__ == '__main__':
     elif sys.argv[1] == "scenes_match":
         tools.matchScenes()
     elif sys.argv[1]=="tmp":
-        res=tools.queryPerformers("Hadley Mason")
-        print(res)
-        if res:
-            for r in res:
-                print(r)
-
-#        res=tools.query_db_scenes(1066)
+#        res=tools.queryPerformers("Hadley Mason")
+#        print(res)
+#        if res:
+#            for r in res:
+#                print(r)
+        res=tools.query_db_scenes(6490)
+        print (res)
 #        status=tools.submitDraft(res)
 #        print(status)
 #        if 'data' in status:

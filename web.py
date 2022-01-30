@@ -104,12 +104,15 @@ def actor(actor_id):
     if row:
         actor={"id":row[0],"created_at":row[1],"updated_at":row[2],"name":row[3],"count":row[4],"stash_id":row[5]}
         c2=tools.conn.cursor()
-        c2.execute('select distinct scenes.site from scenes,scene_cast where scenes.id=scene_cast.scene_id and scene_cast.actor_id=%s;',(actor_id,))
-        sites=[]
+        c2.execute('select scenes.site,scenes.title,scenes.id from scenes,scene_cast where scenes.id=scene_cast.scene_id and scene_cast.actor_id=%s order by scenes.site,title;',(actor_id,))
+        scenes={}
         for row2 in c2.fetchall():
-            sites.append(row2[0])
+            if row2[0] in scenes:
+                scenes[row2[0]].append({"title":row2[1],"id":row2[2]})
+            else:
+                scenes[row2[0]]=[{"title":row2[1],"id":row2[2]}]
         performers_list=tools.queryPerformers(row[3])
-        return render_template('actor.html', actor=actor,performers_list=performers_list,sites=sites)
+        return render_template('actor.html', actor=actor,performers_list=performers_list,scenes=scenes)
     return "No actor"
 
 @app.route('/actor_update/<int:actor_id>')
