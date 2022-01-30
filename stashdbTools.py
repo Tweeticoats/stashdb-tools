@@ -121,9 +121,22 @@ class stashdbTools:
         query="""query Performers($filter: QuerySpec, $performerFilter: PerformerFilterType) {
     queryPerformers(filter: $filter, performer_filter: $performerFilter) {
     count
-    performers{
+     performers{
       id
       name
+      disambiguation
+      aliases
+      gender
+      urls{
+        url
+      }
+      country
+      images{
+        id
+        url
+      	width
+        height
+      }
     }
   }
 }"""

@@ -95,6 +95,7 @@ def scene_submit(scene_id):
             return redirect("https://stashdb.org/drafts/" + status['data']['submitSceneDraft']['id'], code=302)
         else:
            return jsonify(status)
+
 @app.route('/actor/<int:actor_id>')
 def actor(actor_id):
     c=tools.conn.cursor()
@@ -102,10 +103,22 @@ def actor(actor_id):
     row=c.fetchone()
     if row:
         actor={"id":row[0],"created_at":row[1],"updated_at":row[2],"name":row[3],"count":row[4],"stash_id":row[5]}
-
+        c2=tools.conn.cursor()
+        c2.execute('select distinct scenes.site from scenes,scene_cast where scenes.id=scene_cast.scene_id and scene_cast.actor_id=%s;',(actor_id,))
+        sites=[]
+        for row2 in c2.fetchall():
+            sites.append(row2[0])
         performers_list=tools.queryPerformers(row[3])
-        return render_template('actor.html', actor=actor,performers_list=performers_list)
+        return render_template('actor.html', actor=actor,performers_list=performers_list,sites=sites)
     return "No actor"
+
+@app.route('/actor_update/<int:actor_id>')
+def actor_update(actor_id):
+    stash_id = request.args.get('stash_id',type=str)
+    c=tools.conn.cursor()
+    status=c.execute('insert into performer_stashdb(id,stash_id) values (%s,%s);',(actor_id,stash_id,))
+    tools.conn.commit()
+    return redirect("/actor/"+str(actor_id), code=302)
 
 
 

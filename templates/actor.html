@@ -3,18 +3,23 @@
 {% block content %}
 
 <h2>{{ actor['name'] }}</h2>
+sites:
+{%for s in sites %}
+<a href="/studio/{{s}}">{{s}}</a>
+<br/>
+{%endfor%}
 
 {% if actor['stash_id'] %}
 <a href="https://stashdb.org/performers/{{actor['stash_id']}}">{{actor['stash_id']}}</a>
 
 {% else %}
+<hr/>
 Possible performer matches:
 {% if performers_list|length >0 %}
 <ul>
     {% for p in  performers_list['queryPerformers']['performers']  %}
     <li>
-        {{p['id']}} - {{p['name']}}
-
+        <a href="https://stashdb.org/performers/{{p['id']}}">{{p['id']}}</a> - {{p['name']}} - {{p['disambiguation']}} {{p['aliases']}} <a href="/actor_update/{{actor['id']}}?stash_id={{p['id']}}">SET</a>
     </li>
     {% endfor %}
 </ul>
