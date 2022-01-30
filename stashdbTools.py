@@ -605,6 +605,17 @@ fragment ScenePerformerFragment on Performer {
 
         return res
 
+    def isComplete(self,scene):
+        if scene['studio']['id'] is None:
+            return False
+        for p in scene['performers']:
+            if p['id'] == None:
+               return False
+        for t in scene['tags']:
+            if t['id']==None:
+                return False
+        return True
+
     def exportPerformers(self):
         c=self.conn.cursor()
         c.execute('select id,name,gender,url, twitter,instagram,birthdate,ethnicity,country,eye_color,height,measurements,fake_tits,career_length,tattoos,piercings,aliases,details,death_date,hair_color,weight  from performers where id not in (select performer_id from performer_stash_ids where endpoint=?);',(self.url))
@@ -615,8 +626,6 @@ fragment ScenePerformerFragment on Performer {
             url=row[3]
 
 
-    def flask(self):
-        True
 
 if __name__ == '__main__':
 

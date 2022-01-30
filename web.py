@@ -82,7 +82,10 @@ def studio(studio_id):
 @app.route('/scene/<int:scene_id>')
 def scene(scene_id):
     scene = tools.query_db_scenes(scene_id)
-    return render_template('scene.html', scene=scene,scene_id=scene_id)
+
+    complete=tools.isComplete(scene)
+
+    return render_template('scene.html', scene=scene,scene_id=scene_id,complete=complete)
 
 
 @app.route('/scene_submit/<int:scene_id>')
@@ -112,6 +115,7 @@ def actor(actor_id):
             else:
                 scenes[row2[0]]=[{"title":row2[1],"id":row2[2]}]
         performers_list=tools.queryPerformers(row[3])
+
         return render_template('actor.html', actor=actor,performers_list=performers_list,scenes=scenes)
     return "No actor"
 

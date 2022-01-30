@@ -5,7 +5,11 @@
 <h2>{{ scene['title'] }}</h2>
 <img src="{{ scene['scene_image'] }}"/>
 
+{% if complete %}
 <h3><a href="/scene_submit/{{ scene_id }}">SUBMIT</a></h3>
+{% else %}
+<h3>The scene is not complete</h3>
+{% endif %}
 <br/>
 <p>{{ scene['details'] }}</p>
 <h4>tags:</h4><ul>
