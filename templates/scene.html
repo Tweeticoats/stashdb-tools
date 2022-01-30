@@ -8,14 +8,22 @@
 <h3><a href="/scene_submit/{{ scene_id }}">SUBMIT</a></h3>
 <br/>
 <p>{{ scene['details'] }}</p>
-tags:<ul>
+<h4>tags:</h4><ul>
 {% for t in scene['tags'] %}
-<li>{{ t['name'] }} - {{t['id']}}</li>
+<li>{{ t['name'] }}
+{% if t['id'] %}
+    - <a href="https://stashdb.org/tags/{{ t['id'] }}"> {{t['id']}}</a></li>
+{% endif %}
 {% endfor %}
 </ul>
 
+<h4>Performers:</h4>
+<ul>
 {% for p in scene['performers'] %}
-<li>{{ p['name'] }} - {{ p['id'] }}</li>
+<li>{{ p['name'] }}
+    {% if p['id'] %}
+    - <a href="https://stashdb.org/performers/{{ p['id'] }}"> {{ p['id'] }}</a></li>
+{% endif %}
 {% endfor %}
 </ul>
 

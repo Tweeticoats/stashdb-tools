@@ -66,7 +66,16 @@ def studio(studio_id):
             data['description'] = row[3]
             scenes.append(data)
 
-        return render_template('studio.html',studio=studio,scenes=scenes)
+
+        c.execute('select distinct actors.ID,actors.name from actors,scene_cast,scenes where actors.id=scene_cast.actor_id and scene_cast.scene_id=scenes.id and scenes.site=%s and actors.id not in (select id from performer_stashdb) order by actors.count desc;',(studio_id,))
+        missing_performers=[]
+        for row in c.fetchall():
+            data = {}
+            data['id'] = row[0]
+            data['name'] = row[1]
+            missing_performers.append(data)
+
+        return render_template('studio.html',studio=studio,scenes=scenes,missing_performers=missing_performers)
     return 'ERROR'
 
 
@@ -86,6 +95,19 @@ def scene_submit(scene_id):
             return redirect("https://stashdb.org/drafts/" + status['data']['submitSceneDraft']['id'], code=302)
         else:
            return jsonify(status)
+@app.route('/actor/<int:actor_id>')
+def actor(actor_id):
+    c=tools.conn.cursor()
+    c.execute('select a.id,a.created_at,a.updated_at,a.name,a.count,b.stash_id from actors a left join performer_stashdb as b on a.id=b.id where a.id=%s;',(actor_id,))
+    row=c.fetchone()
+    if row:
+        actor={"id":row[0],"created_at":row[1],"updated_at":row[2],"name":row[3],"count":row[4],"stash_id":row[5]}
+
+        performers_list=tools.queryPerformers(row[3])
+        return render_template('actor.html', actor=actor,performers_list=performers_list)
+    return "No actor"
+
+
 
 
 if __name__ == '__main__':

@@ -12,6 +12,16 @@ Studio not matched
 {% endif %}
 <hr>
 
+{% if missing_performers|length >0 %}
+<h3>missing performers: </h3><ul>
+    {% for p in missing_performers %}
+    <ul><a href="/actor/{{p['id']}}">{{ p['name'] }}</a></ul>
+    {% endfor %}
+</ul>
+
+{% endif %}
+
+
 <div class="grid-container">
 
 {% for scene in scenes %}

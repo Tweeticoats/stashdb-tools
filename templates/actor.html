@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>{{ actor['name'] }}</h2>
+
+{% if actor['stash_id'] %}
+<a href="https://stashdb.org/performers/{{actor['stash_id']}}">{{actor['stash_id']}}</a>
+
+{% else %}
+Possible performer matches:
+{% if performers_list|length >0 %}
+<ul>
+    {% for p in  performers_list['queryPerformers']['performers']  %}
+    <li>
+        {{p['id']}} - {{p['name']}}
+
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+{% endblock %}

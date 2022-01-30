@@ -630,11 +630,15 @@ if __name__ == '__main__':
     elif sys.argv[1] == "scenes_match":
         tools.matchScenes()
     elif sys.argv[1]=="tmp":
-        res=tools.query_db_scenes(1066)
+        res=tools.queryPerformers("Hadley Mason")
+        print(res)
+        if res:
+            for r in res:
+                print(r)
 
-
-        status=tools.submitDraft(res)
-        print(status)
-        if 'data' in status:
-            print("https://stashdb.org/drafts/"+status['data']['submitSceneDraft']['id'])
+#        res=tools.query_db_scenes(1066)
+#        status=tools.submitDraft(res)
+#        print(status)
+#        if 'data' in status:
+#            print("https://stashdb.org/drafts/"+status['data']['submitSceneDraft']['id'])
 
