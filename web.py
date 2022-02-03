@@ -43,6 +43,7 @@ def root_url():
 @app.route('/studio/<string:studio_id>')
 def studio(studio_id):
     c=tools.conn.cursor()
+#    c.execute('select a.id,a.name,a.avatar_url,b.stash_id from sites,studios as a left join sites_stashdb as b on a.id =b.id where a.id=%s;',(studio_id,))
     c.execute('select a.id,a.name,a.avatar_url,b.stash_id from sites as a left join sites_stashdb as b on a.id =b.id where a.id=%s;',(studio_id,))
     row=c.fetchone()
     if row:
@@ -54,7 +55,8 @@ def studio(studio_id):
 
         tools.conn.commit()
         scenes=[]
-        c.execute('select a.id,a.title, a.cover_url,a.scene_url,a.synopsis from scenes a left join scenes_stashdb as b on a.id=b.id where a.site=%s order by release_date',(studio_id,))
+#        c.execute('select a.id,a.title, a.cover_url,a.scene_url,a.synopsis from scenes a left join scenes_stashdb as b on a.id=b.id where a.site=%s order by release_date',(studio_id,))
+        c.execute('select a.id,a.title, a.cover_url,a.scene_url,a.synopsis from scenes a, sites s left join scenes_stashdb as b on s.id=b.id where a.site=s.name and s.id=%s order by release_date',(studio_id,))
         scenes=[]
         for row in c.fetchall():
             data = {}
@@ -67,7 +69,9 @@ def studio(studio_id):
             scenes.append(data)
 
 
-        c.execute('select distinct actors.ID,actors.name from actors,scene_cast,scenes where actors.id=scene_cast.actor_id and scene_cast.scene_id=scenes.id and scenes.site=%s and actors.id not in (select id from performer_stashdb) order by actors.count desc;',(studio_id,))
+#        c.execute('select distinct actors.ID,actors.name from actors,scene_cast,scenes where actors.id=scene_cast.actor_id and scene_cast.scene_id=scenes.id and scenes.site=%s and actors.id not in (select id from performer_stashdb) order by actors.count desc;',(studio_id,))
+        c.execute('select distinct actors.ID,actors.name from actors,scene_cast,scenes,sites where actors.id=scene_cast.actor_id and scene_cast.scene_id=scenes.id and scenes.site=sites.name and sites.id=%s and actors.id not in (select id from performer_stashdb) order by actors.count desc;',(studio_id,))
+
         missing_performers=[]
         for row in c.fetchall():
             data = {}
@@ -81,9 +85,11 @@ def studio(studio_id):
 
 @app.route('/scene/<int:scene_id>')
 def scene(scene_id):
-    scene = tools.query_db_scenes(scene_id)
+    scene = tools.query_db_scenes(scene_id,incLoacalID=True)
 
     complete=tools.isComplete(scene)
+
+
 
     return render_template('scene.html', scene=scene,scene_id=scene_id,complete=complete)
 

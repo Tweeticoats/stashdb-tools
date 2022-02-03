@@ -434,6 +434,64 @@ fragment ScenePerformerFragment on Performer {
             return result["queryScenes"]["scenes"]
         return None
 
+    def queryEdits(self,type="SCENE",status="PENDING"):
+        query = """query queryEdits($filter: QuerySpec, $editFilter: EditFilterType) {
+  queryEdits(filter: $filter, edit_filter: $editFilter) {
+    count
+    edits {
+      id
+      user {
+        id
+        name
+      }
+      target_type
+      target {
+        ... on Performer {
+          id
+          name
+          urls {
+            url
+          }
+        }
+        ... on Scene {
+          id
+          title
+          studio{
+            id
+            name
+          }
+          urls {
+            url
+          }
+        }
+        ... on Studio {
+          id
+          name
+          urls {
+            url
+          }
+        }
+      }
+      status
+      applied
+      created
+      updated
+      comments {
+        id
+        user {
+          name
+        }
+        comment
+      }
+    }
+  }
+}"""
+        variables = {"filter": {"direction": "DESC", "page": 1, "per_page": 200},
+            "editFilter": {"target_type": type, "status": status}}
+        result = self.__callGraphQL(query, variables)
+        if "queryEdits" in result:
+            return result["queryEdits"]["edits"]
+        return None
 
     def matchPerformers(self):
         c = self.conn.cursor()
@@ -463,7 +521,7 @@ fragment ScenePerformerFragment on Performer {
             if stashdbid is not None:
                 print("adding stash id: "+stashdbid+" for studio: "+name)
                 c2=self.conn.cursor()
-                c2.execute('insert into sites_stashdb(id,stash_id) values (%s,%s)',(id,stashdbid,))
+                c2.execute('insert into sites_stashdb(id,name,stash_id) values (%s,%s,%s)',(id,name,stashdbid,))
                 self.conn.commit();
 
     def matchTags(self):
@@ -521,6 +579,12 @@ fragment ScenePerformerFragment on Performer {
                         self.conn.commit();
 
 
+    def matchEdits(self):
+        edits=self.queryEdits()
+        if edits:
+            for edit in edits:
+                for url in edit["target"]["url"]:
+                    True
 
 
     def lookupPerformer(self,name):
@@ -579,9 +643,9 @@ fragment ScenePerformerFragment on Performer {
                 input["urls"]= [{"url": urls, "type": "studio"}]
             self.createStudio(input)
 
-    def query_db_scenes(self,id):
+    def query_db_scenes(self,id,incLoacalID=False):
         c = self.conn.cursor()
-        c.execute('select scenes.title,scenes.synopsis,scenes.site,sites_stashdb.stash_id,scenes.cover_url,scenes.scene_url,DATE_FORMAT(scenes.release_date,"%Y-%m-%d"),duration from scenes,sites_stashdb where scenes.site=sites_stashdb.id and scenes.id=%s;', (id,))
+        c.execute('select scenes.title,scenes.synopsis,scenes.site,sites_stashdb.stash_id,scenes.cover_url,scenes.scene_url,DATE_FORMAT(scenes.release_date,"%Y-%m-%d"),duration from scenes,sites_stashdb where scenes.site=sites_stashdb.name and scenes.id=%s;', (id,))
         row = c.fetchone()
         res = {}
         res['title'] = row[0]
@@ -599,9 +663,13 @@ fragment ScenePerformerFragment on Performer {
                   (id,))
         row = c.fetchall()
         res['tags'] = [{"name": x[0],"id":x[1]} for x in row]
-        c.execute("select a.name,b.stash_id from scene_cast c,actors a left join performer_stashdb as b on a.id=b.id where a.id=c.actor_id and c.scene_id=%s;",(id,))
+        c.execute("select a.name,b.stash_id,a.id from scene_cast c,actors a left join performer_stashdb as b on a.id=b.id where a.id=c.actor_id and c.scene_id=%s;",(id,))
         row = c.fetchall()
-        res['performers'] = [{"name": x[0],"id":x[1]} for x in row]
+
+        if incLoacalID:
+            res['performers'] = [{"name": x[0], "id": x[1], "local_id": x[2]} for x in row]
+        else:
+            res['performers'] = [{"name": x[0],"id":x[1]} for x in row]
 
         return res
 
@@ -652,13 +720,18 @@ if __name__ == '__main__':
     elif sys.argv[1] == "scenes_match":
         tools.matchScenes()
     elif sys.argv[1]=="tmp":
+        edits=tools.queryEdits()
+        if edits:
+            for edit in edits:
+                True
+
 #        res=tools.queryPerformers("Hadley Mason")
 #        print(res)
 #        if res:
 #            for r in res:
 #                print(r)
-        res=tools.query_db_scenes(6490)
-        print (res)
+#        res=tools.query_db_scenes(6490)
+#        print (res)
 #        status=tools.submitDraft(res)
 #        print(status)
 #        if 'data' in status:

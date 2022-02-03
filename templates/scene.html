@@ -24,7 +24,7 @@
 <h4>Performers:</h4>
 <ul>
 {% for p in scene['performers'] %}
-<li>{{ p['name'] }}
+<li><a href="/actor/{{p['local_id']}}">{{ p['name'] }}</a>
     {% if p['id'] %}
     - <a href="https://stashdb.org/performers/{{ p['id'] }}"> {{ p['id'] }}</a>
 {% endif %}
